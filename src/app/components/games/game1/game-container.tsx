@@ -1,8 +1,8 @@
 "use client";
 import { Types, Game } from "phaser";
 import { useEffect } from "react";
-// import { Boot } from "./scenes/scene1";
 import { Bubble } from "./scenes/scene2";
+import { Boot } from "./scenes/scene1";
 
 const config: Types.Core.GameConfig = {
   type: Phaser.AUTO, // Auto-detect WebGL or Canvas
@@ -18,7 +18,7 @@ const config: Types.Core.GameConfig = {
       debug: true,
     },
   },
-  scene: [Bubble],
+  scene: [Bubble, Boot],
 };
 
 export default function GameContainer() {
