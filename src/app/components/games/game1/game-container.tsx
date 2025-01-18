@@ -1,50 +1,34 @@
 "use client";
-import { useEffect, useRef } from "react";
-import { config } from "./config";
-import { EventBus } from "./events";
-import { Game } from "phaser";
+import { Types, Game } from "phaser";
+import { useEffect } from "react";
+// import { Boot } from "./scenes/scene1";
+import { Bubble } from "./scenes/scene2";
 
-interface IProps {
-  currentActiveScene?: (scene_instance: Phaser.Scene) => void;
-  ref?: React.RefObject<IRefPhaserGame | null>;
-}
+const config: Types.Core.GameConfig = {
+  type: Phaser.AUTO, // Auto-detect WebGL or Canvas
+  mode: Phaser.Scale.FIT,
 
-export interface IRefPhaserGame {
-  game: Phaser.Game | null;
-  scene: Phaser.Scene | null;
-}
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: {
+        x: 0,
+        y: 200,
+      },
+      debug: true,
+    },
+  },
+  scene: [Bubble],
+};
 
-export const GameContainer = ({ currentActiveScene, ref }: IProps) => {
-  const game = useRef<Phaser.Game | null>(null);
-
+export default function GameContainer() {
   useEffect(() => {
-    if (!game.current) {
-      game.current = new Game({ ...config });
-      if (ref) {
-        ref.current = { game: game.current, scene: null };
-      }
-    }
+    const game = new Game(config);
 
     return () => {
-      game.current?.destroy(true);
-      game.current = null;
+      game.destroy(true);
     };
-  }, [ref]);
-
-  useEffect(() => {
-    const handleSceneReady = (scene_instance: Phaser.Scene) => {
-      currentActiveScene?.(scene_instance);
-      if (ref) {
-        ref.current = { game: game.current, scene: scene_instance };
-      }
-    };
-
-    EventBus.on("current-scene-ready", handleSceneReady);
-
-    return () => {
-      EventBus.removeListener("current-scene-ready");
-    };
-  }, [currentActiveScene, ref]);
+  }, []);
 
   return <div id="game-container" />;
-};
+}
