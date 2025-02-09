@@ -45,14 +45,14 @@ const Game = () => {
         setTurnsCount((prev) => prev - 1);
       }
     };
-    EventBus.on("looser", handleLooser);
+    EventBus.on("loser", handleLooser);
     return () => {
-      EventBus.off("looser", handleLooser);
+      EventBus.off("loser", handleLooser);
     };
   }, []);
 
   return (
-    <div id="app">
+    <div>
       <TrackerBar
         leftCount={leftCount}
         rightCount={rightCount}
