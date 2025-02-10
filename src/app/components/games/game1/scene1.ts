@@ -6,13 +6,15 @@ export class Target extends Scene {
   private background!: Phaser.GameObjects.Image;
   private targets!: Phaser.Physics.Arcade.Group;
   private initialTargets: Phaser.Physics.Arcade.Sprite[] = [];
-  private RemainTargets: Phaser.Physics.Arcade.Sprite[] = [];
+  private remainTargets: Phaser.Physics.Arcade.Sprite[] = [];
   private gameOver: boolean = false;
   private levelCount: number = 3;
   private levelDuration: number = 2000 * this.levelCount;
   private TARGET_AREA_MARGIN = 0.25;
   private correctGuesses: number = 0;
-  private turnsCount = 9; // Add turns counter
+  private MIN_VELOCITY: number = -100;
+  private MAX_VELOCITY: number = 100;
+  private animationTimer?: Phaser.Time.TimerEvent;
 
   constructor() {
     super({ key: "TargetScene" });
@@ -24,15 +26,32 @@ export class Target extends Scene {
   }
 
   create() {
-    // Add event listener for turns updates
-    EventBus.on("turns-updated", (turns: number) => {
-      this.turnsCount = turns;
-    });
+    // Reset all variables when scene starts/restarts
+    this.initialTargets = [];
+    this.remainTargets = [];
+    this.gameOver = false;
+    this.correctGuesses = 0;
 
     this.createBackground();
     this.setupPhysics();
     this.setupLevel();
     this.startAnimationTimer();
+  }
+
+  // Clean up resources when scene shuts down
+  shutdown() {
+    if (this.animationTimer) {
+      this.animationTimer.remove();
+    }
+
+    // Clear any event listeners
+    if (this.targets) {
+      this.targets.clear(true, true); // destroy all group members
+    }
+
+    this.initialTargets = [];
+    this.remainTargets = [];
+    this.shutdown();
   }
 
   private createBackground() {
@@ -53,6 +72,7 @@ export class Target extends Scene {
   }
 
   setupLevel() {
+    // Create the targets group first
     this.targets = this.physics.add.group({
       collideWorldBounds: true,
       bounceX: 1,
@@ -71,22 +91,24 @@ export class Target extends Scene {
       for (let i = 0; i < this.levelCount + 1; i++) {
         const target = this.createTarget();
         target.setAlpha(0);
-        this.RemainTargets.push(target);
+        this.remainTargets.push(target);
       }
     });
 
+    const applyRandomVelocity = (target: Phaser.Physics.Arcade.Sprite) => {
+      target.setVelocity(
+        Phaser.Math.Between(this.MIN_VELOCITY, this.MAX_VELOCITY)
+      );
+    };
+
     this.time.delayedCall(500 * this.levelCount + 500, () => {
-      this.initialTargets.forEach((target) =>
-        target.setVelocity(Phaser.Math.Between(-100, 100))
-      );
-      this.RemainTargets.forEach((target) =>
-        target.setVelocity(Phaser.Math.Between(-100, 100))
-      );
+      this.initialTargets.forEach(applyRandomVelocity);
+      this.remainTargets.forEach(applyRandomVelocity);
     });
 
     this.time.delayedCall(1000 * this.levelCount, () => {
       this.tweens.add({
-        targets: this.RemainTargets,
+        targets: this.remainTargets,
         alpha: 1,
         duration: 600,
         ease: "Linear",
@@ -111,7 +133,7 @@ export class Target extends Scene {
       .setCollideWorldBounds(true)
       .setBounce(1)
       .setDisplaySize(50, 50)
-      .setInteractive();
+      .setInteractive({ useHandCursor: true });
 
     target.flipX = target.x < this.game.canvas.width / 2;
 
@@ -119,7 +141,8 @@ export class Target extends Scene {
   }
 
   private startAnimationTimer() {
-    this.time.addEvent({
+    // Store reference to the timer so we can remove it if needed
+    this.animationTimer = this.time.addEvent({
       delay: this.levelDuration,
       callback: this.stopAnimation,
       callbackScope: this,
@@ -128,13 +151,22 @@ export class Target extends Scene {
   }
 
   private stopAnimation() {
+    // Check if targets exists before using it
+    if (!this.targets) return;
+
     this.targets.setVelocity(0, 0);
 
     this.targets.getChildren().forEach((target) => {
       const spriteTarget = target as Phaser.Physics.Arcade.Sprite;
 
+      // Remove any existing listeners first
+      spriteTarget.removeAllListeners("pointerdown");
+
       spriteTarget.on("pointerdown", () => {
-        if (this.gameOver || this.turnsCount <= 0) return;
+        if (this.gameOver) {
+          EventBus.emit("turnsCount");
+          return;
+        }
 
         spriteTarget.removeInteractive();
         EventBus.emit("target-clicked"); // Notify React
@@ -146,13 +178,13 @@ export class Target extends Scene {
           this.correctGuesses++;
 
           if (this.correctGuesses === this.levelCount) {
-            this.gameOver = true;
             this.targets.getChildren().forEach((target) => {
               const spriteTarget = target as Phaser.Physics.Arcade.Sprite;
               spriteTarget.setAlpha(0);
             });
-            this.displayMessage("You Win!");
             EventBus.emit("winner"); // Notify React
+            this.gameOver = true;
+            this.displayMessage("You Win!");
           }
         } else {
           this.targets.getChildren().forEach((target) => {
@@ -160,9 +192,9 @@ export class Target extends Scene {
             spriteTarget.setAlpha(0);
           });
           this.initialTargets.map((target) => target.setAlpha(1));
+          EventBus.emit("loser"); // Notify React
           this.gameOver = true;
           this.displayMessage("You Lose!");
-          EventBus.emit("looser"); // Notify React
         }
       });
     });
@@ -175,5 +207,28 @@ export class Target extends Scene {
         color: "#ffffff",
       })
       .setOrigin(0.5);
+
+    // Add restart button
+    this.add
+      .text(
+        this.game.canvas.width / 2,
+        this.game.canvas.height / 2 + 50,
+        "Restart",
+        {
+          font: "24px Arial",
+          color: "#ffffff",
+          backgroundColor: "#445B1F",
+          padding: { x: 20, y: 10 },
+        }
+      )
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        // First emit the reset event to update React state
+        EventBus.emit("reset");
+
+        // Then restart the scene properly
+        this.scene.restart();
+      });
   }
 }
