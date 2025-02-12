@@ -17,7 +17,7 @@ interface ContainerIProps {
   ref?: React.RefObject<ContainerIRef | null>;
 }
 
-export const GameContainer = ({ currentActiveScene, ref }: ContainerIProps) => {
+export const GameContainer = ({ ref, currentActiveScene }: ContainerIProps) => {
   const game = useRef<Phaser.Game | null>(null);
 
   useEffect(() => {
