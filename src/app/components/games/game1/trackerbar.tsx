@@ -5,12 +5,12 @@ const TrackerBar = ({
   leftCount,
   rightCount,
   turnsCount,
-  startValue,
+  starValue,
 }: {
   leftCount: number;
   rightCount: number;
   turnsCount: number;
-  startValue: number;
+  starValue: number;
 }) => {
   return (
     <div className="flex justify-between bg-[#445B1F]">
@@ -35,7 +35,7 @@ const TrackerBar = ({
             fontSize="8"
             className="fill-white"
           >
-            {startValue}
+            {starValue}
           </text>
         </svg>
         <p className="text-nowrap">{turnsCount} TURNS LEFT</p>
