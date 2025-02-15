@@ -1,6 +1,6 @@
 // game.tsx
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ContainerIRef,
   GameContainer,
@@ -8,56 +8,47 @@ import {
 import TrackerBar from "./trackerbar";
 import { EventBus } from "./EventBus";
 
+const INITIAL_TURNS = 9;
+
 const Game = () => {
   const phaserRef = useRef<ContainerIRef | null>(null);
-  const [leftCount, setLeftCount] = useState(0);
-  const [rightCount, setRightCount] = useState(0);
-  const [turnsCount, setTurnsCount] = useState(9);
-
-  // Listen for target clicks from Phaser
-  useEffect(() => {
-    const handleTargetClicked = () => {
-      setTurnsCount((prev) => Math.max(prev - 1, 0));
-    };
-    EventBus.on("target-clicked", handleTargetClicked);
-    return () => {
-      EventBus.off("target-clicked", handleTargetClicked);
-    };
-  }, []);
+  const [leftArrowCount, setLeftArrowCount] = useState(0);
+  const [rightArrowCount, setRightArrowCount] = useState(0);
+  const [turnsCount, setTurnsCount] = useState(INITIAL_TURNS);
 
   useEffect(() => {
     const handleWinner = () => {
-      if (turnsCount > 0 && rightCount < 3) {
-        setRightCount((prev) => prev + 1);
+      if (rightArrowCount < 3) {
+        setRightArrowCount((prev) => prev + 1);
         setTurnsCount((prev) => prev - 1);
       }
     };
+
+    const handleLoser = () => {
+      if (leftArrowCount < 2) {
+        setLeftArrowCount((prev) => prev + 1);
+        setTurnsCount((prev) => prev - 1);
+      }
+    };
+
+    // Add listeners
     EventBus.on("winner", handleWinner);
+    EventBus.on("loser", handleLoser);
+
+    // Clean up all listeners when component unmounts
     return () => {
       EventBus.off("winner", handleWinner);
+      EventBus.off("loser", handleLoser);
     };
-  }, []);
-
-  useEffect(() => {
-    const handleLooser = () => {
-      if (turnsCount > 0 && leftCount < 2) {
-        setLeftCount((prev) => prev + 1);
-        setTurnsCount((prev) => prev - 1);
-      }
-    };
-    EventBus.on("loser", handleLooser);
-    return () => {
-      EventBus.off("loser", handleLooser);
-    };
-  }, []);
+  }, []); // Dependencies required for your conditional logic
 
   return (
     <div>
       <TrackerBar
-        leftCount={leftCount}
-        rightCount={rightCount}
+        leftCount={leftArrowCount}
+        rightCount={rightArrowCount}
         turnsCount={turnsCount}
-        startValue={3}
+        starValue={3}
       />
       <GameContainer ref={phaserRef} />
     </div>
